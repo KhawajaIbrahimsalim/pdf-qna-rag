@@ -1,187 +1,277 @@
 # PDF Q&A RAG System
 
-## 🚀 Overview
+An end-to-end Retrieval-Augmented Generation application for asking grounded questions over arbitrary PDF documents. The app is built with Streamlit, uses Gemini for embeddings and answer generation, and exposes its retrieval reasoning through source excerpts rather than hiding the model behind a black box.
 
-This is a cutting-edge **Retrieval-Augmented Generation (RAG)** powered PDF Question-Answering application built from scratch using modern AI techniques. The system enables users to upload PDF documents and engage in intelligent, context-aware conversations about their content. Leveraging semantic search, conversation memory, and source attribution, this project demonstrates advanced AI engineering principles in natural language processing and information retrieval.
+This project is intentionally simple in deployment and explicit in behavior:
 
-### Key Highlights
-- **Semantic Search**: Utilizes vector embeddings for precise document retrieval beyond keyword matching
-- **Conversation Memory**: Maintains context across multiple interactions for coherent, follow-up responses
-- **Source Attribution**: Provides transparent source excerpts with relevance scores for every answer
-- **Real-time Processing**: Handles PDF uploads and indexing on-the-fly with efficient chunking strategies
-- **Scalable Architecture**: Modular design supporting easy extension to other document types and LLMs
+- no vector database
+- no background workers
+- no opaque orchestration layer
+- just a clean RAG pipeline with session-scoped state, transparent retrieval, and a UI that makes the system easy to inspect
 
-## 🏗️ Architecture
+## Why This Project Matters
 
-The system implements a sophisticated RAG pipeline with the following components:
+Most document chat demos stop at "upload a file and get an answer." This project goes a step further by making the retrieval pipeline visible and understandable:
+
+- PDF text is extracted page by page
+- text is chunked with overlap to reduce boundary loss
+- chunks are embedded once and held in memory for the active session
+- each question is embedded and matched against the indexed chunks with cosine similarity
+- the final response is generated from retrieved context plus short conversation history
+- the UI shows the actual supporting excerpts and their relevance scores
+
+That combination makes the app useful both as a portfolio project and as a compact reference implementation of a practical RAG workflow.
+
+## What The App Does
+
+The system allows a user to:
+
+- upload a PDF
+- index the document on demand
+- ask follow-up questions in a chat interface
+- see the retrieved supporting excerpts behind each answer
+- reset the session and start over with a new document
+
+The current implementation is optimized for clarity and iteration speed, which makes it especially good for demos, interviews, learning, and first-pass product validation.
+
+## System Architecture
 
 ```mermaid
 graph TD
-    A[User Uploads PDF] --> B[Extract Text from PDF]
-    B --> C[Chunk Text with Overlap]
-    C --> D[Generate Embeddings for Chunks]
-    D --> E[Store Chunks and Embeddings in Memory]
-    F[User Asks Question] --> G[Embed Question]
-    G --> H[Retrieve Top-K Similar Chunks]
-    H --> I[Generate Answer using Gemini]
-    I --> J[Display Answer with Source Attribution]
-    E --> H
-    K[Conversation History] --> I
-    I --> L[Update Chat History]
+    A[User uploads PDF] --> B[Extract text with PyMuPDF]
+    B --> C[Chunk text with overlap]
+    C --> D[Embed chunks with Gemini]
+    D --> E[Store chunks and embeddings in Streamlit session state]
+    F[User asks question] --> G[Embed question]
+    G --> H[Compute cosine similarity]
+    H --> I[Retrieve top-k chunks]
+    I --> J[Build prompt with context + recent history]
+    J --> K[Generate answer with Gemini]
+    K --> L[Render answer and source excerpts]
 ```
 
-### Technical Deep Dive
-- **Text Extraction**: Uses PyMuPDF for robust PDF parsing, preserving page-level context
-- **Chunking Strategy**: Implements overlapping word-based chunks (400 words with 60-word overlap) to maintain semantic continuity
-- **Embedding Model**: Leverages Google's `gemini-embedding-001` for high-dimensional semantic representations
-- **Retrieval Algorithm**: Cosine similarity-based ranking for optimal chunk selection
-- **Generation Model**: Powered by `gemini-2.5-flash` with carefully crafted prompts for accurate, contextual responses
-- **Memory Management**: Rolling window of 6 recent messages to balance context retention and computational efficiency
+## Design Decisions
 
-## ✨ Features
+### 1. In-memory indexing instead of a vector database
 
-### Core Functionality
-- **Intelligent Q&A**: Answers questions based on document content with high accuracy
-- **Multi-turn Conversations**: Remembers previous questions and answers for natural dialogue flow
-- **Source Transparency**: Displays relevant document excerpts with confidence scores
-- **Real-time Indexing**: Processes PDFs instantly without pre-processing requirements
-- **Error Handling**: Graceful degradation for non-text PDFs and edge cases
+This app stores chunks and embeddings in `st.session_state` rather than in Pinecone, FAISS, Chroma, or PostgreSQL. That is a deliberate tradeoff:
 
-### User Experience
-- **Intuitive Interface**: Clean Streamlit UI with chat-like interaction
-- **Progress Indicators**: Real-time feedback during document processing
-- **Session Persistence**: Maintains document state across page refreshes
-- **Responsive Design**: Optimized for desktop and mobile usage
+- faster to understand
+- easier to deploy
+- ideal for a single-user session
+- sufficient for interview and portfolio scenarios
 
-## 🛠️ Technology Stack
+The tradeoff is that indexing is ephemeral and resets when the session is cleared or restarted.
 
-- **Frontend**: Streamlit - Rapid web app development with Python
-- **AI/ML**: Google Gemini API - State-of-the-art multimodal language models
-- **Embeddings**: Vector representations for semantic search
-- **PDF Processing**: PyMuPDF (Fitz) - High-performance PDF text extraction
-- **Vector Operations**: NumPy - Efficient numerical computations
-- **Environment Management**: python-dotenv - Secure API key handling
+### 2. Overlapping chunking
 
-## 📋 Prerequisites
+Chunks are built at the word level with overlap. This helps preserve meaning around section boundaries where a naive split would often break context in the middle of an important sentence or explanation.
 
-- Python 3.8+
-- Google Cloud API key with Gemini access
-- Internet connection for API calls
+### 3. Retrieval transparency
 
-## 🚀 Installation & Setup
+The app returns source excerpts with similarity scores so the user can inspect why the answer was generated. This is one of the most important habits in LLM application design: do not ask users to trust the model blindly when you can expose the grounding evidence.
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/yourusername/pdf-qna-rag.git
-   cd pdf-qna-rag
-   ```
+### 4. Short conversation memory
 
-2. **Create Virtual Environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+The system includes the last few turns of conversation when generating the next answer. That gives the app better follow-up behavior without pretending it has infinite memory.
 
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Core Components
 
-4. **Configure API Key**
-   - Create a `config.env` file in the root directory
-   - Add your Google API key:
-     ```
-     GOOGLE_API_KEY=your_api_key_here
-     ```
+### [app.py](d:/Articficial%20Intelligance/protfolio_projects_env/pdf-qna-rag/app.py)
 
-5. **Run the Application**
-   ```bash
-   streamlit run app.py
-   ```
+Owns the Streamlit experience:
 
-## 🎯 Usage
+- page setup
+- upload flow
+- indexing trigger
+- session state management
+- chat rendering
+- source excerpt display
 
-1. **Upload Document**: Use the sidebar to upload a PDF file
-2. **Index Document**: Click "Index Document" to process and embed the content
-3. **Ask Questions**: Enter questions in the chat interface
-4. **Review Sources**: Expand "View source excerpts" to see supporting evidence
+### [rag_pipeline.py](d:/Articficial%20Intelligance/protfolio_projects_env/pdf-qna-rag/rag_pipeline.py)
 
-### Example Interaction
-```
-User: What are the main benefits of this approach?
-Assistant: Based on the document, the primary benefits include...
-[Source excerpts with relevance scores]
+Owns the RAG logic:
+
+- PDF parsing
+- chunking
+- embedding generation
+- cosine similarity retrieval
+- prompt construction
+- answer generation with Gemini
+
+## Current Credential Setup
+
+The current code reads the Gemini key from Streamlit secrets:
+
+```python
+api_key = st.secrets["GEMINI_API_KEY"]
 ```
 
-## 📊 Performance Metrics
+That means:
 
-### Retrieval Accuracy
-- **Precision@4**: 92% (top-4 chunks contain relevant information)
-- **Semantic Similarity**: Average cosine similarity > 0.75 for relevant chunks
+- `GEMINI_API_KEY` is the active secret name
+- local development should use `.streamlit/secrets.toml`
+- Streamlit Community Cloud should use `App Settings > Secrets`
+- `config.env` is not the active credential source in the current implementation
 
-### Response Quality
-- **Factual Accuracy**: 95% of answers directly supported by source material
-- **Context Retention**: Maintains conversation coherence across 6+ turns
+## Local Setup
 
-### System Performance
-- **Indexing Time**: < 30 seconds for 100-page documents
-- **Query Response**: < 3 seconds average
-- **Memory Usage**: Efficient in-memory storage for session-based workflows
+### 1. Clone the repository
 
-## 🖼️ User Interface
+```bash
+git clone https://github.com/KhawajaIbrahimsalim/pdf-qna-rag.git
+cd pdf-qna-rag
+```
 
-The application features a clean, intuitive Streamlit interface designed for seamless document interaction:
+### 2. Create a virtual environment
 
-**Left Sidebar**
-- PDF upload with real-time processing feedback
-- Document indexing status with chunk count display
-- Memory indicators showing active conversation turns
-- Quick reset button for session management
+```bash
+python -m venv venv
+```
 
-**Main Chat Area**
-- Chat history with clear user/assistant role distinction
-- Expandable source excerpts showing document context
-- Relevance scores for each retrieved excerpt
-- Real-time response generation with visual feedback
+### 3. Activate it
 
-**Screenshots**: [Add your own screenshots to `assets/readme/` folder for maximum impact on GitHub]
+Windows:
 
-## 🔮 Future Enhancements
+```bash
+venv\Scripts\activate
+```
 
-- **Multi-Document Support**: Simultaneous querying across multiple PDFs
-- **Advanced Chunking**: Hybrid sentence/paragraph-based chunking strategies
-- **Fine-tuned Embeddings**: Domain-specific embedding models for specialized content
-- **Caching Layer**: Persistent storage for frequently accessed documents
-- **Multi-Modal Support**: Integration with image and table understanding
-- **API Endpoints**: RESTful API for programmatic access
-- **User Authentication**: Secure multi-user environments
-- **Analytics Dashboard**: Usage metrics and performance monitoring
+macOS/Linux:
 
-## 🤝 Contributing
+```bash
+source venv/bin/activate
+```
 
-This project welcomes contributions from the AI and NLP community. Areas of interest:
-- Performance optimizations
-- Additional language model integrations
-- Enhanced UI/UX features
-- Comprehensive testing suites
+### 4. Install dependencies
 
-## 📄 License
+```bash
+pip install -r requirements.txt
+```
 
-MIT License - See LICENSE file for details.
+### 5. Create `.streamlit/secrets.toml`
 
-## 👨‍💻 Author
+```toml
+GEMINI_API_KEY = "your_gemini_api_key_here"
+```
 
-**Khawaja Ibrahim Salim**
-- LinkedIn: [\[Your LinkedIn Profile\]](https://www.linkedin.com/in/khawajaibrahimsalim1/)
-- GitHub: [\[Your GitHub Profile\]](https://github.com/KhawajaIbrahimsalim)
+### 6. Run the app
+
+```bash
+streamlit run app.py
+```
+
+## Streamlit Cloud Deployment
+
+To deploy on Streamlit Community Cloud:
+
+1. Connect the GitHub repository
+2. Set the app entrypoint to `app.py`
+3. Open `App Settings > Secrets`
+4. Add:
+
+```toml
+GEMINI_API_KEY = "your_gemini_api_key_here"
+```
+
+The current version of the app expects that secret to exist at startup. If it is missing, the app will fail fast rather than silently degrade.
+
+## User Experience
+
+### Left Sidebar
+
+The sidebar is the document control plane. It handles file upload, indexing, session summary, and reset behavior.
+
+- upload a PDF
+- index the current document
+- inspect chunk count
+- inspect memory state
+- clear the active session
+
+![Left Sidebar](assets/readme/Left%20Side%20Bar.png)
+
+### Main Chat Area
+
+The main area is where retrieval becomes visible. It shows the user question, the generated answer, and the retrieved excerpts that supported the answer.
+
+- conversational Q&A over the active PDF
+- source excerpts behind each answer
+- relevance scores for retrieved chunks
+- short multi-turn context retention
+
+![Main Chat Area](assets/readme/Main%20Chat%20Area.png)
+
+## Retrieval Flow
+
+For each question, the pipeline does the following:
+
+1. embed the user question
+2. compare it against stored chunk embeddings
+3. rank chunks by cosine similarity
+4. select the top `k=4` chunks
+5. build a prompt from:
+   - system instructions
+   - retrieved document context
+   - recent chat history
+   - current user question
+6. generate the answer with `gemini-2.5-flash`
+
+This design keeps the model grounded in document evidence while still allowing useful follow-up responses.
+
+## Strengths
+
+- compact, readable RAG implementation
+- transparent retrieval UX
+- clear separation between UI and pipeline logic
+- good portfolio signal for LLM application engineering
+- fast to run and easy to explain in interviews
+
+## Known Limitations
+
+- indexing is session-scoped and not persistent
+- scanned PDFs without selectable text will not perform well because there is no OCR step
+- there is no vector database or long-term document store
+- there is no authentication or multi-user isolation
+- retrieval is dense-only and does not combine keyword or reranking strategies
+
+These are reasonable limitations for a portfolio-grade MVP, and they also define a natural roadmap for future iterations.
+
+## Suggested Next Steps
+
+If this were extended toward production, the next improvements would likely be:
+
+- persistent vector storage
+- OCR support for scanned PDFs
+- hybrid retrieval with lexical plus semantic ranking
+- answer citation formatting at the page level
+- document caching
+- multi-document search
+- evaluation harnesses for retrieval and answer quality
+
+## Project Structure
+
+```text
+pdf-qna-rag/
+├── app.py
+├── rag_pipeline.py
+├── requirements.txt
+├── README.md
+├── config.env
+├── LICENSE
+└── assets/
+    └── readme/
+        ├── Left Side Bar.png
+        └── Main Chat Area.png
+```
+
+## License
+
+MIT License. See [LICENSE](d:/Articficial%20Intelligance/protfolio_projects_env/pdf-qna-rag/LICENSE).
+
+## Author
+
+Khawaja Ibrahim Salim
+
+- LinkedIn: [My LinkedIn Profile](https://www.linkedin.com/in/khawajaibrahimsalim1/)
+- GitHub: [My GitHub Profile](https://github.com/KhawajaIbrahimsalim)
 - Email: ibrahimsalim.dev@gmail.com
-
-## 🙏 Acknowledgments
-
-- Google AI for the Gemini API
-- Streamlit for the excellent web app framework
-- The open-source community for inspiring this implementation
-
----
-
-*Built with passion for advancing AI accessibility and document intelligence.*
