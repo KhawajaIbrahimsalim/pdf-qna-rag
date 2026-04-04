@@ -128,16 +128,23 @@ Assistant: Based on the document, the primary benefits include...
 - **Query Response**: < 3 seconds average
 - **Memory Usage**: Efficient in-memory storage for session-based workflows
 
-## 🖼️ Screenshots
+## 🖼️ User Interface
 
-### Main Interface
-![Main Interface](assets/readme/main_interface.png)
+The application features a clean, intuitive Streamlit interface designed for seamless document interaction:
 
-### Chat with Source Attribution
-![Chat Interface](assets/readme/chat_with_sources.png)
+**Left Sidebar**
+- PDF upload with real-time processing feedback
+- Document indexing status with chunk count display
+- Memory indicators showing active conversation turns
+- Quick reset button for session management
 
-### Document Indexing Progress
-![Indexing Progress](assets/readme/indexing_progress.png)
+**Main Chat Area**
+- Chat history with clear user/assistant role distinction
+- Expandable source excerpts showing document context
+- Relevance scores for each retrieved excerpt
+- Real-time response generation with visual feedback
+
+**Screenshots**: [Add your own screenshots to `assets/readme/` folder for maximum impact on GitHub]
 
 ## 🔮 Future Enhancements
 
@@ -165,9 +172,9 @@ MIT License - See LICENSE file for details.
 ## 👨‍💻 Author
 
 **Khawaja Ibrahim Salim**
-- LinkedIn: [Your LinkedIn Profile]
-- GitHub: [Your GitHub Profile]
-- Email: [Your Email]
+- LinkedIn: [\[Your LinkedIn Profile\]](https://www.linkedin.com/in/khawajaibrahimsalim1/)
+- GitHub: [\[Your GitHub Profile\]](https://github.com/KhawajaIbrahimsalim)
+- Email: ibrahimsalim.dev@gmail.com
 
 ## 🙏 Acknowledgments
 
