@@ -272,7 +272,7 @@ pdf-qna-rag/
 
 ## License
 
-MIT License. See [LICENSE](d:/Articficial%20Intelligance/protfolio_projects_env/pdf-qna-rag/LICENSE).
+MIT License. See [LICENSE](LICENSE).
 
 ## Author
 
