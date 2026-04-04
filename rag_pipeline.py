@@ -49,14 +49,14 @@ def chunk_text(text, chunk_size=400, overlap=60):
 def get_embeddings(texts):
     """
     Convert a list of text strings into embedding vectors.
-    Uses Google Gemini text-embedding-004.
+    Uses Google Gemini gemini-embedding-001.
     """
     if not texts:
         raise ValueError("No text chunks available for embedding. The PDF may contain only images or no readable text.")
 
     try:
         response = client.models.embed_content(
-            model='text-embedding-004',
+            model='gemini-embedding-001',
             contents=texts
         )
     except ClientError as exc:
