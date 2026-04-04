@@ -2,10 +2,13 @@ import os
 import numpy as np
 import fitz  # PyMuPDF
 from google import genai
-from dotenv import load_dotenv
+from google.genai.errors import ClientError
+# from dotenv import load_dotenv
+import streamlit as st
 
-load_dotenv('config.env')
-api_key = os.getenv("GOOGLE_API_KEY")
+# load_dotenv('config.env')
+# api_key = os.getenv("GOOGLE_API_KEY")
+api_key = st.secrets["GOOGLE_API_KEY"]
 if not api_key:
     raise RuntimeError(
         "GOOGLE_API_KEY is not set. Set it in the environment or in .env before running the app."
@@ -51,10 +54,18 @@ def get_embeddings(texts):
     if not texts:
         raise ValueError("No text chunks available for embedding. The PDF may contain only images or no readable text.")
 
-    response = client.models.embed_content(
-        model='gemini-embedding-001',
-        contents=texts
-    )
+    try:
+        response = client.models.embed_content(
+            model='gemini-embedding-001',
+            contents=texts
+        )
+    except ClientError as exc:
+        message = str(exc)
+        raise RuntimeError(
+            f"Embedding request failed: {message}. "
+            f"Check your API key, model access, quota, and Streamlit secrets."
+        ) from exc
+
     return [embedding.values for embedding in response.embeddings]
 
 def cosine_similarity(a, b):

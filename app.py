@@ -127,7 +127,6 @@ else:
         # Retrieve relevant chunks and generate answer
         with st.chat_message("assistant"):
             with st.spinner("Searching document..."):
-
                 # Embed the question
                 query_emb = get_embeddings([question])[0]
 
