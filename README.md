@@ -1,5 +1,11 @@
 # PDF Q&A RAG System
 
+## Live Demo
+
+[Open the demo App](https://pdf-qna-rag-khawajaibrahimsalim1.streamlit.app/)
+
+[My GitHub Profile](https://github.com/KhawajaIbrahimsalim) · [My LinkedIn Profile](https://www.linkedin.com/in/khawajaibrahimsalim1/)
+
 An end-to-end Retrieval-Augmented Generation application for asking grounded questions over arbitrary PDF documents. The app is built with Streamlit, uses Gemini for embeddings and answer generation, and exposes its retrieval reasoning through source excerpts rather than hiding the model behind a black box.
 
 This project is intentionally simple in deployment and explicit in behavior:
@@ -272,6 +278,4 @@ MIT License. See [LICENSE](d:/Articficial%20Intelligance/protfolio_projects_env/
 
 Khawaja Ibrahim Salim
 
-- LinkedIn: [My LinkedIn Profile](https://www.linkedin.com/in/khawajaibrahimsalim1/)
-- GitHub: [My GitHub Profile](https://github.com/KhawajaIbrahimsalim)
 - Email: ibrahimsalim.dev@gmail.com
