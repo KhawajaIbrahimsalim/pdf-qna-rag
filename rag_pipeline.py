@@ -1,17 +1,17 @@
 import os
 import numpy as np
 import fitz  # PyMuPDF
-from openai import OpenAI
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv('config.env')
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     raise RuntimeError(
-        "OPENAI_API_KEY is not set. Set it in the environment or in .env before running the app."
+        "GOOGLE_API_KEY is not set. Set it in the environment or in .env before running the app."
     )
 
-client = OpenAI(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 
 def extract_text_from_pdf(pdf_file):
@@ -46,14 +46,16 @@ def chunk_text(text, chunk_size=400, overlap=60):
 def get_embeddings(texts):
     """
     Convert a list of text strings into embedding vectors.
-    Uses OpenAI text-embedding-3-small — cheap and accurate.
+    Uses Google Gemini gemini-embedding-001.
     """
-    response = client.embeddings.create(
-        model="text-embedding-3-small",
-        input=texts
-    )
-    return [item.embedding for item in response.data]
+    if not texts:
+        raise ValueError("No text chunks available for embedding. The PDF may contain only images or no readable text.")
 
+    response = client.models.embed_content(
+        model='gemini-embedding-001',
+        contents=texts
+    )
+    return [embedding.values for embedding in response.embeddings]
 
 def cosine_similarity(a, b):
     """Measure how similar two vectors are (1.0 = identical meaning)."""
@@ -76,75 +78,59 @@ def retrieve_top_k(query_embedding, chunk_embeddings, chunks, k=4):
 
 def answer_question(question, context_chunks, chat_history):
     """
-    Send retrieved chunks + question + conversation history to GPT-4o-mini.
+    Send retrieved chunks + question + conversation history to Gemini.
 
     HOW MEMORY WORKS:
-    Instead of sending a single message, we build a full messages array:
-      1. A system message setting the assistant's behaviour and rules
-      2. The document context injected once as a user message
-      3. The last N turns of real conversation (alternating user/assistant)
-      4. The current question as the final user message
+    We build a full prompt including:
+      1. System instructions
+      2. Document context
+      3. Conversation history (last 6 messages)
+      4. Current question
 
-    GPT sees the whole conversation so follow-ups like
-    "can you elaborate?" or "what about point 2?" work correctly.
-    We cap history at 6 turns (3 exchanges) to control token costs.
+    Gemini processes the entire context for coherent responses.
     """
 
     # Build the context block from retrieved chunks
     context = "\n\n---\n\n".join([chunk for chunk, _ in context_chunks])
 
     # System prompt — sets behaviour for the whole conversation
-    system_prompt = """You are a helpful assistant that answers questions 
-based strictly on document excerpts provided to you.
+    system_prompt = """You are a helpful assistant that uses the provided document excerpts
+as the primary source of truth.
 
 Rules:
-- Only use information from the document context. Do not make things up.
-- If the answer is not in the context, say:
-  "I couldn't find this in the document."
-- Be concise and specific.
-- When answering follow-up questions, use the conversation history
-  to understand what the user is referring to."""
+- Answer from the document whenever a direct answer exists.
+- If the user asks for brainstorming, related ideas, or explanations
+  inspired by the document, you may provide a thoughtful response
+  that extends beyond verbatim document content.
+- Do not fabricate details about the document itself.
+- If no direct answer exists, say:
+  "I couldn't find a direct answer in the document, but here is a related idea based on it."
+- Be concise, clear, and helpful.
+- Use conversation history to interpret follow-up questions."""
 
-    # Start building the messages array
-    messages = [{"role": "system", "content": system_prompt}]
+    # Build the full prompt
+    prompt = f"""{system_prompt}
 
-    # Inject document context as the first user message.
-    # We frame it as a setup message so it stays in memory
-    # across all turns without re-sending every time.
-    messages.append({
-        "role": "user",
-        "content": f"""Here are the relevant excerpts from the document 
-for our conversation:
+Here are the relevant excerpts from the document for our conversation:
 
 {context}
 
-Please use these excerpts to answer my questions."""
-    })
+Please use these excerpts as the main foundation for your answers.
+If the user is asking for brainstorming or related ideas, you may provide relevant
+insights based on the document and general topic knowledge."""
 
-    # Acknowledge context injection (keeps message pairs balanced)
-    messages.append({
-        "role": "assistant",
-        "content": "Understood. I have read the document excerpts. "
-                   "Please go ahead with your questions."
-    })
-
-    # Add the last 6 messages from real conversation history
-    # (= last 3 user questions + 3 assistant answers)
-    # Capped to avoid inflating token costs on long sessions
+    # Add conversation history (last 6 messages)
     recent_history = chat_history[-6:]
     for msg in recent_history:
-        messages.append({
-            "role": msg["role"],
-            "content": msg["content"]
-        })
+        role = "User" if msg["role"] == "user" else "Assistant"
+        prompt += f"\n\n{role}: {msg['content']}"
 
-    # Finally, add the current question
-    messages.append({"role": "user", "content": question})
+    # Add current question
+    prompt += f"\n\nUser: {question}\n\nAssistant:"
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        temperature=0.1,
-        max_tokens=600
+    # Generate response with Gemini
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt
     )
-    return response.choices[0].message.content
+    return response.candidates[0].content.parts[0].text

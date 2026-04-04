@@ -48,13 +48,16 @@ with st.sidebar:
                 with st.spinner("Reading and indexing..."):
                     text = extract_text_from_pdf(uploaded_file)
                     chunks = chunk_text(text)
-                    embeddings = get_embeddings(chunks)
+                    if not chunks:
+                        st.error("No readable text was found in this PDF. Try a text-based PDF instead.")
+                    else:
+                        embeddings = get_embeddings(chunks)
 
-                    st.session_state.chunks = chunks
-                    st.session_state.embeddings = embeddings
-                    st.session_state.chat_history = []
-                    st.session_state.display_history = []
-                    st.session_state.filename = uploaded_file.name
+                        st.session_state.chunks = chunks
+                        st.session_state.embeddings = embeddings
+                        st.session_state.chat_history = []
+                        st.session_state.display_history = []
+                        st.session_state.filename = uploaded_file.name
 
                 st.success(f"Done! {len(chunks)} chunks indexed.")
 
