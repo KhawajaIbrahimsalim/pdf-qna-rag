@@ -3,17 +3,17 @@ import numpy as np
 import fitz  # PyMuPDF
 from google import genai
 from google.genai.errors import ClientError
-# from dotenv import load_dotenv
 import streamlit as st
 
-# load_dotenv('config.env')
-# api_key = os.getenv("GOOGLE_API_KEY")
-api_key = st.secrets["GOOGLE_API_KEY"]
+# 1. Fetch the secret using the updated name
+api_key = st.secrets["GEMINI_API_KEY"]
+
 if not api_key:
     raise RuntimeError(
-        "GOOGLE_API_KEY is not set. Set it in the environment or in .env before running the app."
+        "GEMINI_API_KEY is not set in Streamlit secrets."
     )
 
+# 2. Pass it directly to the client
 client = genai.Client(api_key=api_key)
 
 
@@ -49,14 +49,14 @@ def chunk_text(text, chunk_size=400, overlap=60):
 def get_embeddings(texts):
     """
     Convert a list of text strings into embedding vectors.
-    Uses Google Gemini gemini-embedding-001.
+    Uses Google Gemini text-embedding-004.
     """
     if not texts:
         raise ValueError("No text chunks available for embedding. The PDF may contain only images or no readable text.")
 
     try:
         response = client.models.embed_content(
-            model='gemini-embedding-001',
+            model='text-embedding-004',
             contents=texts
         )
     except ClientError as exc:
